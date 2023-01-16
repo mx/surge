@@ -15,15 +15,58 @@
 
 #include "LuaSupport.h"
 #include <iostream>
+#include <mutex>
 #include <string>
 #include <vector>
 #include <sstream>
+#include <unordered_map>
 #include <cstring>
 #include "basic_dsp.h"
+#include "pffft.h"
 #if HAS_JUCE
 #include "SurgeSharedBinary.h"
 #endif
 #include "lua/LuaSources.h"
+#include "sst/cpputils/lru_cache.h"
+
+// Container for items held in the FFT cache.
+struct FFTElement {
+    explicit FFTElement(std::size_t sz)
+        : size(sz)
+    {
+        data = static_cast<float *>(pffft_aligned_malloc(sizeof(float) * sz));
+        setup = pffft_new_setup(sz, PFFFT_REAL);
+    }
+
+    ~FFTElement()
+    {
+        pffft_aligned_free(data);
+        pffft_destroy_setup(setup);
+    }
+
+    FFTElement(FFTElement &&) = default;
+    FFTElement &operator=(FFTElement &&) = default;
+
+    // Non-copyable.
+    FFTElement(const FFTElement &) = delete;
+    FFTElement &operator=(const FFTElement &) = delete;
+
+    // The actual data.
+    std::size_t size;
+    float *data;
+    PFFFT_Setup *setup;
+};
+
+// Cache for FFT objects used in Lua, so we don't need to constantly (re)create objects for the
+// given size. Each size points to the object in question.
+//
+// Never deleted. Initialized through a lambda to prevent static initialization order fiascos.
+// Dynamically allocated to prevent static destruction fiascos.
+static sst::cpputils::LRU<std::size_t, FFTElement> *fftCache = []() {
+    return new sst::cpputils::LRU<std::size_t, FFTElement>(5);
+ }();
+
+static const bool IsPowerOfTwo(size_t x) { return x && (x & (x - 1)) == 0; }
 
 bool Surge::LuaSupport::parseStringDefiningFunction(lua_State *L, const std::string &definition,
                                                     const std::string &functionName,
@@ -109,6 +152,46 @@ int lua_limitRange(lua_State *L)
     return 1;
 }
 
+// FFT Lua interface: take input array, return output array.
+// The input array size equals the size of the FFT.
+// Real-only.
+int lua_FFTForward(lua_State *L)
+{
+#if HAS_LUA
+    luaL_checktype(L, -1, LUA_TTABLE);
+    std::size_t n = lua_objlen(L, -1);
+    if (!IsPowerOfTwo(n))
+    {
+        luaL_error(L, "FFT size must be a power of two.");
+    }
+    auto fft = fftCache->get(n);
+    alignas(16) float input[n];
+    alignas(16) float output[n];
+    for (std::size_t i = 0; i < n; i++)
+    {
+        lua_rawgeti(L, -1, i+1);
+        input[i] = luaL_checknumber(L, -2);
+        lua_remove(L, -2);
+    }
+    pffft_transform(fft->setup, input, output, fft->data, PFFFT_FORWARD);
+    lua_remove(L, -1);
+    lua_newtable(L);
+    for (std::size_t i = 0; i < n; i++)
+    {
+        lua_pushnumber(L, output[i]);
+        lua_rawseti(L, -1, i+1);
+    }
+#endif
+    return 1;
+}
+
+// // FFT Lua interface: size, input array, output array.
+int lua_FFTInverse(lua_State *L)
+{
+    // FIXME: Implement.
+    return 1;
+}
+
 bool Surge::LuaSupport::setSurgeFunctionEnvironment(lua_State *L)
 {
 #if HAS_LUA
@@ -146,6 +229,10 @@ bool Surge::LuaSupport::setSurgeFunctionEnvironment(lua_State *L)
 
     lua_pushstring(L, "clamp");
     lua_pushcfunction(L, lua_limitRange);
+    lua_settable(L, -3);
+
+    lua_pushstring(L, "fft_forward");
+    lua_pushcfunction(L, lua_FFTForward);
     lua_settable(L, -3);
 
     // stack is now func > table again *BUT* now load math in stripped

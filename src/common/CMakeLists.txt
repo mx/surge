@@ -359,6 +359,7 @@ add_library(surge::${PROJECT_NAME} ALIAS ${PROJECT_NAME})
 target_link_libraries(${PROJECT_NAME}
   PUBLIC
   fmt
+  pffft
   luajit-5.1
   samplerate
   surge::airwindows
