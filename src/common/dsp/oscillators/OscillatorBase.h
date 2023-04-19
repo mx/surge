@@ -27,7 +27,7 @@ class alignas(16) Oscillator
     float output alignas(16)[BLOCK_SIZE_OS];
     float outputR alignas(16)[BLOCK_SIZE_OS];
 
-    Oscillator(SurgeStorage *storage, OscillatorStorage *oscdata, pdata *localcopy);
+    Oscillator(SurgeStorage *storage, OscillatorStorage *oscdata, pdata *localcopy, int max_params);
     virtual ~Oscillator();
     virtual void init(float pitch, bool is_display = false, bool nonzero_init_drift = true){};
     virtual void init_ctrltypes(int scene, int oscnum) { init_ctrltypes(); };
@@ -64,6 +64,8 @@ class alignas(16) Oscillator
         // No-op here.
     }
 
+    const int max_params;
+
   protected:
     SurgeStorage *storage;
     OscillatorStorage *oscdata;
@@ -77,7 +79,8 @@ class alignas(16) Oscillator
 class AbstractBlitOscillator : public Oscillator
 {
   public:
-    AbstractBlitOscillator(SurgeStorage *storage, OscillatorStorage *oscdata, pdata *localcopy);
+    AbstractBlitOscillator(SurgeStorage *storage, OscillatorStorage *oscdata, pdata *localcopy,
+                           int max_param);
 
   protected:
     float oscbuffer alignas(16)[OB_LENGTH + FIRipol_N];

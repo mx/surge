@@ -138,8 +138,8 @@
 using namespace std;
 
 AbstractBlitOscillator::AbstractBlitOscillator(SurgeStorage *storage, OscillatorStorage *oscdata,
-                                               pdata *localcopy)
-    : Oscillator(storage, oscdata, localcopy)
+                                               pdata *localcopy, int max_params)
+    : Oscillator(storage, oscdata, localcopy, max_params)
 {
     integrator_hpf = (1.f - 2.f * 20.f * storage->samplerate_inv);
     integrator_hpf *= integrator_hpf;
@@ -162,8 +162,8 @@ void AbstractBlitOscillator::prepare_unison(int voices)
 }
 
 ClassicOscillator::ClassicOscillator(SurgeStorage *storage, OscillatorStorage *oscdata,
-                                     pdata *localcopy)
-    : AbstractBlitOscillator(storage, oscdata, localcopy), charFilt(storage)
+                                     pdata *localcopy, int max_params)
+    : AbstractBlitOscillator(storage, oscdata, localcopy, max_params), charFilt(storage)
 {
 }
 
@@ -240,8 +240,14 @@ void ClassicOscillator::init(float pitch, bool is_display, bool nonzero_init_dri
     }
 }
 
-void ClassicOscillator::init_ctrltypes()
+std::list<ParamConfiguratorThingie> ClassicOscillator::init_ctrltypes()
 {
+    return {
+        {co_shape, "Shape", ct_percent_bipolar, 0.f},
+        {co_width1, "Width 1", ct_percent_bipolar, 0.5f},
+        // etc
+    };
+#if 0
     oscdata->p[co_shape].set_name("Shape");
     oscdata->p[co_shape].set_type(ct_percent_bipolar);
     oscdata->p[co_width1].set_name("Width 1");
@@ -258,9 +264,12 @@ void ClassicOscillator::init_ctrltypes()
     oscdata->p[co_unison_detune].set_type(ct_oscspread);
     oscdata->p[co_unison_voices].set_name("Unison Voices");
     oscdata->p[co_unison_voices].set_type(ct_osccount);
+#endif
 }
 void ClassicOscillator::init_default_values()
 {
+    // No longer necessary, init_ctrltypes does this.
+#if 0
     oscdata->p[co_shape].val.f = 0.f;
     oscdata->p[co_width1].val.f = 0.5f;
     oscdata->p[co_width2].val.f = 0.5f;
@@ -268,6 +277,7 @@ void ClassicOscillator::init_default_values()
     oscdata->p[co_sync].val.f = 0.f;
     oscdata->p[co_unison_detune].val.f = 0.1f;
     oscdata->p[co_unison_voices].val.i = 1;
+#endif
 }
 
 template <bool FM> void ClassicOscillator::convolute(int voice, bool stereo)
@@ -608,12 +618,15 @@ void ClassicOscillator::process_block(float pitch0, float drift, bool stereo, bo
     /*
     ** And step all my internal parameters
     */
+    // done in caller now instead.
+#if 0
     update_lagvals<false>();
     l_pw.process();
     l_pw2.process();
     l_shape.process();
     l_sub.process();
     l_sync.process();
+#endif
 
     if (FM)
     {

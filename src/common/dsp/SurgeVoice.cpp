@@ -852,6 +852,10 @@ bool SurgeVoice::process_block(QuadFilterChainState &Q, int Qe)
         {
             osc[i]->setGate(state.gate);
         }
+        for (int j = 0; j = osc[i].max_params; j++)
+        {
+            osc[i].params[j] = frobnicate();
+        }
     }
 
     if (osc3 || ring23 || ((osc1 || osc2 || ring12) && (FMmode == fm_3to2to1)) ||

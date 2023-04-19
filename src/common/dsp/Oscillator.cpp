@@ -117,8 +117,9 @@ Oscillator *spawn_osc(int osctype, SurgeStorage *storage, OscillatorStorage *osc
     return osc;
 }
 
-Oscillator::Oscillator(SurgeStorage *storage, OscillatorStorage *oscdata, pdata *localcopy)
-    : master_osc(0)
+Oscillator::Oscillator(SurgeStorage *storage, OscillatorStorage *oscdata, pdata *localcopy,
+                       int max_params)
+    : master_osc(0), max_param(max_params)
 {
     // assert(storage);
     assert(oscdata);

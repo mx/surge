@@ -20,6 +20,14 @@
 #include <vembertech/lipol.h>
 #include "BiquadFilter.h"
 
+struct ParamConfiguratorThingie
+{
+    int id;
+    std::string name;
+    int type;
+    float default_val; // or whatever type
+};
+
 class ClassicOscillator : public AbstractBlitOscillator
 {
   public:
@@ -32,17 +40,20 @@ class ClassicOscillator : public AbstractBlitOscillator
         co_sync,
         co_unison_detune,
         co_unison_voices,
+        max_param,
     };
 
     ClassicOscillator(SurgeStorage *storage, OscillatorStorage *oscdata, pdata *localcopy);
     virtual void init(float pitch, bool is_display = false,
                       bool nonzero_init_drift = true) override;
-    virtual void init_ctrltypes() override;
+    virtual std::list<ParamConfiguratorThingie> init_ctrltypes() override;
     virtual void init_default_values() override;
     virtual void process_block(float pitch, float drift = 0.f, bool stereo = false, bool FM = false,
                                float FMdepth = 0.f) override;
     template <bool FM> void convolute(int voice, bool stereo);
     virtual ~ClassicOscillator();
+
+    std::array params<float, max_param>;
 
   private:
     bool first_run;

@@ -927,7 +927,13 @@ void SurgePatch::update_controls(
                 spawn_osc(sc.osc[osc].type.val.i, storage, &sc.osc[osc], nullptr, mbuf);
             if (t_osc)
             {
-                t_osc->init_ctrltypes(sn, osc);
+                auto params = t_osc->init_ctrltypes(sn, osc);
+                for (const ParameterConfiguratorThingie &p : params)
+                {
+                    storage->p[p.id].set_name(p.name);
+                    storage->p[p.id].set_type(p.type);
+                    storage->p[p.id].val.f = p.default_val;
+                }
                 if (from_streaming)
                     t_osc->handleStreamingMismatches(streamingRevision,
                                                      currentSynthStreamingRevision);
