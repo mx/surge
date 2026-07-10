@@ -30,6 +30,7 @@
 
 #include <cstdint>
 #include <memory>
+#include <mutex>
 #include <optional>
 #include <string>
 #include <vector>
@@ -38,6 +39,10 @@ namespace Surge
 {
 namespace WavetableScript
 {
+// The LuaWTEvaluator is not thread safe. Callers should hold the lock before
+// performing any operations. Multiple operations should all be performed under
+// the same lock, to ensure that the underlying state does not change from
+// multiple threads attempting to evaluate different tables and scripts.
 struct LuaWTEvaluator
 {
     struct Details;
@@ -47,6 +52,10 @@ struct LuaWTEvaluator
 
     static constexpr uint64_t wtsFeatures = Surge::LuaSupport::EnvironmentFeatures::BASE |
                                             Surge::LuaSupport::EnvironmentFeatures::HAS_FFT;
+
+    // BasicLockable interface
+    void lock();
+    void unlock();
 
     void setStorage(SurgeStorage *);
     void setOscillatorStorage(int scene, int osc);
@@ -85,6 +94,8 @@ struct LuaWTEvaluator
     };
     std::optional<WtscriptData> parseWtscript(const fs::path &filename, SurgeStorage *storage,
                                               OscillatorStorage *oscdata);
+
+    std::mutex internal_lock;
 };
 
 } // namespace WavetableScript

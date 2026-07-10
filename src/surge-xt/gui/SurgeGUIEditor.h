@@ -1110,6 +1110,12 @@ class SurgeGUIEditor : public Surge::GUI::IComponentTagValue::Listener,
                                            "Control 125 Omni Mode On",
                                            "Control 126 Mono Mode Off",
                                            "Control 127 Mono Mode On"};
+
+    // Proof of concept for the thread work for wavetable scripts.
+  private:
+    void generateWavetable(OscillatorStorage *oscdata, Wavetable *wt, bool export_mode = false);
+    void loadWtscript(const fs::path &location, SurgeStorage *storage, OscillatorStorage *oscdata);
+    std::atomic<std::size_t> active_loads;
 };
 
 #endif // SURGE_SRC_SURGE_XT_GUI_SURGEGUIEDITOR_H

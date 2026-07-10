@@ -375,6 +375,10 @@ LuaWTEvaluator::LuaWTEvaluator() { details = std::make_unique<Details>(); }
 
 LuaWTEvaluator::~LuaWTEvaluator() = default;
 
+void LuaWTEvaluator::lock() { internal_lock.lock(); }
+
+void LuaWTEvaluator::unlock() { internal_lock.unlock(); }
+
 void LuaWTEvaluator::setStorage(SurgeStorage *s)
 {
 #if HAS_LUA

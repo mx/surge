@@ -2966,7 +2966,16 @@ void SurgeGUIEditor::wtscriptFileDropped(const string &fn)
 
     OscillatorStorage *oscdata =
         &synth->storage.getPatch().scene[current_scene].osc[current_osc[current_scene]];
-    evaluator->loadWtscript(string_to_path(fn), &synth->storage, oscdata);
+    // Proof of concept: doing this in a thread.
+    active_loads++;
+    std::thread t(&SurgeGUIEditor::loadWtscript, this, string_to_path(fn), &synth->storage, oscdata);
+    t.detach();
+    // Now your spinner will check:
+    // if (active_loads) {
+    //    do the spinner
+    // } else {
+    //    get rid of the spinner
+    //  }
 
     oscdata->wt.current_id = -1;
     oscdata->queue_type = ot_wavetable; // Setting queue_type also handles OWD/editor refresh
@@ -6832,14 +6841,14 @@ void SurgeGUIEditor::exportWavetableAs(WTExportFormat exportFormat)
             case WAV:
             {
                 std::string metadata = this->synth->storage.make_wt_metadata(&oscdata);
-                evaluator->generateWavetable(&this->synth->storage, &oscdata, &oscdata.wt);
+                generateWavetable(&oscdata, &oscdata.wt);
                 this->synth->storage.export_wt_wav_portable(fsp, &oscdata.wt, metadata);
                 break;
             }
             case WT:
             {
                 std::string metadata = this->synth->storage.make_wt_metadata(&oscdata);
-                evaluator->generateWavetable(&this->synth->storage, &oscdata, &oscdata.wt);
+                generateWavetable(&oscdata, &oscdata.wt);
                 if (!this->synth->storage.export_wt_wt_portable(fsp, &oscdata.wt, metadata))
                 {
                     this->synth->storage.reportError(
@@ -6853,7 +6862,7 @@ void SurgeGUIEditor::exportWavetableAs(WTExportFormat exportFormat)
                 int oldres = oscdata.wavetable_script_res_base;
                 oscdata.wavetable_script_res_base = (exportFormat == SERUM ? 7 : 4);
                 Wavetable wt;
-                evaluator->generateWavetable(&this->synth->storage, &oscdata, &wt, true);
+                generateWavetable(&oscdata, &wt, true);
                 oscdata.wavetable_script_res_base = oldres;
 
                 std::string metadata = this->synth->storage.make_wt_metadata(&oscdata);
@@ -7107,4 +7116,18 @@ fs::path SurgeGUIEditor::juceStringToFSPath(const juce::String &fullPathName)
 
 #endif
     return fullPath;
+}
+
+void SurgeGUIEditor::generateWavetable(OscillatorStorage *oscdata, Wavetable *wt, bool export_mode)
+{
+    std::lock_guard l(*evaluator);
+    evaluator->generateWavetable(&this->synth->storage, oscdata, wt, export_mode);
+}
+
+void SurgeGUIEditor::loadWtscript(const fs::path &location, SurgeStorage *storage,
+                                  OscillatorStorage *oscdata)
+{
+    std::lock_guard l(*evaluator);
+    evaluator->loadWtscript(location, storage, oscdata);
+    active_loads--;
 }
